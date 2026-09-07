@@ -84,10 +84,10 @@ cp .env.example .env
 | `OLLAMA_BASE_URL` | адрес Ollama, по умолчанию `http://localhost:11434` |
 | `FRAME_SAMPLE_SECONDS`, `MAX_FRAMES` | шаг выборки кадров и предел их числа на видео |
 | `MODEL_IMAGE_MAX_SIDE` | до какой стороны сжимать кадры перед отправкой в модель (640) |
-| `AGENT_PROVIDER` | `custom` (любой OpenAI-совместимый эндпоинт) или `openai` |
-| `CUSTOM_BASE_URL`, `CUSTOM_API_KEY`, `CUSTOM_CHAT_MODEL` | провайдер `custom` |
+| `AGENT_PROVIDER` | `openai` (по умолчанию) или `custom` (любой OpenAI-совместимый эндпоинт) |
 | `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL` | провайдер `openai` |
-| `OPENAI_EMBED_MODEL` | модель эмбеддингов для семантического поиска |
+| `OPENAI_EMBED_MODEL` | модель эмбеддингов для семантического поиска — нужна независимо от `AGENT_PROVIDER` |
+| `CUSTOM_BASE_URL`, `CUSTOM_API_KEY`, `CUSTOM_CHAT_MODEL` | провайдер `custom` |
 | `MAX_STEPS_AGENT`, `MAX_TOKENS_AGENT` | бюджет шагов и токенов на один запуск агента |
 | `FFMPEG_PATH`, `FFPROBE_PATH`, `FFPLAY_PATH` | пути к бинарникам, если их нет в `PATH` |
 

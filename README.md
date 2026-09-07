@@ -84,10 +84,10 @@ can also be added from the UI.
 | `OLLAMA_BASE_URL` | Ollama address, defaults to `http://localhost:11434` |
 | `FRAME_SAMPLE_SECONDS`, `MAX_FRAMES` | frame sampling step and cap per video |
 | `MODEL_IMAGE_MAX_SIDE` | max side to downscale frames to before sending to the model (640) |
-| `AGENT_PROVIDER` | `custom` (any OpenAI-compatible endpoint) or `openai` |
-| `CUSTOM_BASE_URL`, `CUSTOM_API_KEY`, `CUSTOM_CHAT_MODEL` | the `custom` provider |
+| `AGENT_PROVIDER` | `openai` (default) or `custom` (any OpenAI-compatible endpoint) |
 | `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL` | the `openai` provider |
-| `OPENAI_EMBED_MODEL` | embedding model for semantic search |
+| `OPENAI_EMBED_MODEL` | embedding model for semantic search — needed regardless of `AGENT_PROVIDER` |
+| `CUSTOM_BASE_URL`, `CUSTOM_API_KEY`, `CUSTOM_CHAT_MODEL` | the `custom` provider |
 | `MAX_STEPS_AGENT`, `MAX_TOKENS_AGENT` | step and token budget per agent run |
 | `FFMPEG_PATH`, `FFPROBE_PATH`, `FFPLAY_PATH` | binary paths, if not on `PATH` |
 

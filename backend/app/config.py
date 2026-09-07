@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     )
 
     # --- хранилище медиа (Р-11) ---
-    media_roots: str = "~/Documents/RSA/Video"
+    #: Пусто — хранилище ещё не выбрано; папки добавляются из UI или через .env.
+    media_roots: str = ""
 
     # --- анализ (Р-9) ---
     ollama_base_url: str = "http://localhost:11434"
@@ -36,7 +37,7 @@ class Settings(BaseSettings):
     model_image_max_side: int = 640
 
     # --- агент (Р-10) ---
-    agent_provider: str = "custom"
+    agent_provider: str = "openai"
     custom_base_url: str = ""
     custom_api_key: str = ""
     custom_chat_model: str = ""
