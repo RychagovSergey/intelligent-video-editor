@@ -1,0 +1,11 @@
+fastapi==0.121.2
+uvicorn[standard]==0.41.0
+sqlalchemy==2.0.46
+pydantic==2.12.4
+pydantic-settings==2.13.0
+python-dotenv==1.2.1
+httpx==0.28.1
+pytest==8.4.2
+mcp>=2.1
+librosa==1.0.0
+Pillow==12.3.0
