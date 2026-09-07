@@ -1,57 +1,59 @@
 # Intelligent Video Editor
 
-Десктопное приложение для чернового видеомонтажа: локальный семантический анализ
-медиатеки через Qwen2.5-VL, таймлайн-редактор, предпросмотр и экспорт через ffmpeg,
-плюс LLM-агент, который собирает монтаж по текстовому запросу («сделай динамичный ролик
-на минуту из кадров с морем под этот трек»).
+**English | [Русский](README_RU.md)**
 
-Всё, что касается содержимого медиатеки, считается **локально**: описания кадров,
-объекты и сцены с таймкодами, темп и тактовая сетка музыки. Наружу уходит только текст
-запроса к монтажному агенту — и то лишь если агентом пользуются.
+A desktop app for rough-cut video editing: local semantic analysis of your media
+library via Qwen2.5-VL, a timeline editor, ffmpeg-based preview and export, plus an
+LLM agent that assembles a rough cut from a text prompt ("make a punchy one-minute
+clip from the ocean shots, cut to this track").
 
-![Интерфейс: таймлайн, панель метаданных и агент-монтажёр](assets/screenshot.png)
+Everything about your media's *content* stays **local**: frame descriptions, objects
+and scenes with timestamps, music tempo and beat grid. The only thing that leaves your
+machine is the text of a request to the editing agent — and only if you use the agent.
 
-## Возможности
+![UI: timeline, metadata panel and the editing agent](assets/screenshot.png)
 
-- **Индексация хранилища** — рекурсивный инкрементальный скан, характеристики файлов
-  через ffprobe, миниатюры, пометка повреждённых файлов.
-- **Анализ медиа через Qwen2.5-VL** (локально, Ollama) — описание, объекты, стиль,
-  настроение; для видео — сцены с таймкодами, по которым можно выбрать нужный фрагмент
-  внутри длинного файла. Очередь с прогрессом, отменой и быстрым режимом на модели
-  поменьше.
-- **Разметка аудио** — темп, доли и такты (`beat_times`, `downbeats`), паузы и всплески
-  громкости. Считается один раз при анализе, поэтому трек можно отбирать по темпу.
-- **Таймлайн-редактор** — три дорожки (видео, аудио, текст), добавление, перемещение,
-  обрезка, разрезание, скорость, fade, mute, переходы (crossfade / dip to black),
-  текстовые слои, отмена и повтор.
-- **Предпросмотр** — прокси-рендер 640×360 с кешем и встроенным плеером; при желании
-  отдельное окно ffplay.
-- **Экспорт** — MP4/H.264 (CRF 18/23/28 или битрейт), MOV/ProRes, WebM/VP9; прогресс с
-  оценкой времени, отмена, проверка свободного места.
-- **Агент-монтажёр** — собирает черновой монтаж по текстовому запросу через внешнюю
-  LLM с function calling, поверх тех же операций таймлайна; поиск материала по смыслу
-  (эмбеддинги описаний), лог действий в интерфейсе.
-- **MCP-сервер** — те же инструменты монтажа для внешнего агента (Claude Code,
-  Claude Desktop и др.).
+## Features
 
-## Требования
+- **Storage indexing** — recursive incremental scan, file characteristics via
+  ffprobe, thumbnails, corrupted files flagged.
+- **Media analysis via Qwen2.5-VL** (local, through Ollama) — description, objects,
+  style, mood; for video, scenes with timestamps so you can pick the right moment
+  inside a long clip. Queue with progress, cancellation, and a lighter/faster model
+  option.
+- **Audio rhythm markup** — tempo, beats and bars (`beat_times`, `downbeats`), silences
+  and volume peaks. Computed once during analysis, so a track can be picked by tempo.
+- **Timeline editor** — three tracks (video, audio, text), add/move/trim/split/speed/
+  fade/mute, transitions (crossfade / dip to black), text overlays, undo/redo.
+- **Preview** — 640×360 cached proxy render with a built-in player; optionally a
+  separate ffplay window.
+- **Export** — MP4/H.264 (CRF 18/23/28 or bitrate), MOV/ProRes, WebM/VP9; progress with
+  time estimate, cancellation, free-space check.
+- **Editing agent** — assembles a rough cut from a text prompt via an external LLM
+  with function calling, built on the same timeline operations; semantic material
+  search (description embeddings), action log in the UI.
+- **MCP server** — the same editing tools exposed to an external agent (Claude Code,
+  Claude Desktop, etc.).
 
-| Компонент | Версия | Зачем |
+## Requirements
+
+| Component | Version | Why |
 |---|---|---|
 | Python | 3.12 | backend |
 | Node.js | 20+ | frontend (Vite + React) |
-| ffmpeg, ffprobe | любая современная | анализ, предпросмотр, экспорт — **обязательно** |
-| ffplay | — | предпросмотр в отдельном окне, необязательно |
-| [Ollama](https://ollama.com) | — | локальный анализ медиа |
+| ffmpeg, ffprobe | any recent | analysis, preview, export — **required** |
+| ffplay | — | preview in a separate window, optional |
+| [Ollama](https://ollama.com) | — | local media analysis |
 
-Бинарники ffmpeg берутся из `PATH` либо из путей в `.env` (`FFMPEG_PATH`, `FFPROBE_PATH`,
-`FFPLAY_PATH`).
+ffmpeg binaries are picked up from `PATH`, or from paths set in `.env`
+(`FFMPEG_PATH`, `FFPROBE_PATH`, `FFPLAY_PATH`).
 
-Агент-монтажёр и семантический поиск требуют доступа к внешней LLM (OpenAI-совместимый
-эндпоинт) — без ключей приложение работает, просто эти две функции недоступны: поиск
-падает обратно на совпадение слов, а агент сообщает, что провайдер не настроен.
+The editing agent and semantic search need access to an external LLM (an
+OpenAI-compatible endpoint) — without keys the app still runs, those two features
+just aren't available: search falls back to keyword matching, and the agent reports
+that no provider is configured.
 
-## Установка
+## Install
 
 ```bash
 git clone <url> "Video AI" && cd "Video AI"
@@ -65,35 +67,36 @@ ollama pull qwen2.5vl:7b
 ollama pull qwen2.5vl:3b
 ```
 
-## Настройка
+## Configure
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` не коммитится. Минимум для старта — указать `MEDIA_ROOTS`; корневые папки можно
-задать и прямо в интерфейсе.
+`.env` is not committed. The minimum to get started is `MEDIA_ROOTS`; root folders
+can also be added from the UI.
 
-| Переменная | Значение |
+| Variable | Meaning |
 |---|---|
-| `MEDIA_ROOTS` | корни медиатеки, несколько — через запятую, `~` разворачивается |
-| `DATA_DIR` | папка кеша; пусто — `data` внутри первого корня |
-| `VL_MODEL`, `VL_MODEL_FAST` | модели анализа в Ollama (обычная и быстрая) |
-| `OLLAMA_BASE_URL` | адрес Ollama, по умолчанию `http://localhost:11434` |
-| `FRAME_SAMPLE_SECONDS`, `MAX_FRAMES` | шаг выборки кадров и предел их числа на видео |
-| `MODEL_IMAGE_MAX_SIDE` | до какой стороны сжимать кадры перед отправкой в модель (640) |
-| `AGENT_PROVIDER` | `custom` (любой OpenAI-совместимый эндпоинт) или `openai` |
-| `CUSTOM_BASE_URL`, `CUSTOM_API_KEY`, `CUSTOM_CHAT_MODEL` | провайдер `custom` |
-| `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL` | провайдер `openai` |
-| `OPENAI_EMBED_MODEL` | модель эмбеддингов для семантического поиска |
-| `MAX_STEPS_AGENT`, `MAX_TOKENS_AGENT` | бюджет шагов и токенов на один запуск агента |
-| `FFMPEG_PATH`, `FFPROBE_PATH`, `FFPLAY_PATH` | пути к бинарникам, если их нет в `PATH` |
+| `MEDIA_ROOTS` | media library roots, comma-separated, `~` is expanded |
+| `DATA_DIR` | cache folder; empty — `data` inside the first root |
+| `VL_MODEL`, `VL_MODEL_FAST` | analysis models in Ollama (regular and fast) |
+| `OLLAMA_BASE_URL` | Ollama address, defaults to `http://localhost:11434` |
+| `FRAME_SAMPLE_SECONDS`, `MAX_FRAMES` | frame sampling step and cap per video |
+| `MODEL_IMAGE_MAX_SIDE` | max side to downscale frames to before sending to the model (640) |
+| `AGENT_PROVIDER` | `custom` (any OpenAI-compatible endpoint) or `openai` |
+| `CUSTOM_BASE_URL`, `CUSTOM_API_KEY`, `CUSTOM_CHAT_MODEL` | the `custom` provider |
+| `OPENAI_API_KEY`, `OPENAI_CHAT_MODEL` | the `openai` provider |
+| `OPENAI_EMBED_MODEL` | embedding model for semantic search |
+| `MAX_STEPS_AGENT`, `MAX_TOKENS_AGENT` | step and token budget per agent run |
+| `FFMPEG_PATH`, `FFPROBE_PATH`, `FFPLAY_PATH` | binary paths, if not on `PATH` |
 
-Остальные параметры и подробные пояснения — в [.env.example](.env.example).
+The rest of the settings, with detailed comments, are in
+[.env.example](.env.example).
 
-## Запуск
+## Run
 
-Двумя процессами: backend и dev-сервер фронтенда.
+Two processes: the backend and the frontend dev server.
 
 ```bash
 .venv/bin/uvicorn backend.app.main:app --reload --port 8001
@@ -104,125 +107,128 @@ npm run dev --prefix frontend
 ```
 
 - UI — http://localhost:5173
-- Документация API — http://localhost:8001/docs
+- API docs — http://localhost:8001/docs
 
-Dev-сервер проксирует `/api` на порт 8001; для другого порта — `BACKEND_PORT=8000 npm run
-dev --prefix frontend` (см. [frontend/vite.config.ts](frontend/vite.config.ts)).
+The dev server proxies `/api` to port 8001; for a different port use
+`BACKEND_PORT=8000 npm run dev --prefix frontend` (see
+[frontend/vite.config.ts](frontend/vite.config.ts)).
 
-## Как пользоваться
+## Usage
 
-1. **Добавить папки** медиатеки в интерфейсе (или прописать `MEDIA_ROOTS`) и дождаться
-   скана: сначала файлы индексируются, затем читаются характеристики через ffprobe.
-2. **Проанализировать файлы** — кнопка анализа разбирает отмеченные файлы через
-   Qwen2.5-VL и складывает результат в `meta.json`. Повторный анализ с перезаписью —
-   отдельной кнопкой; он нужен, если разметка устарела (например, после обновления
-   приложения у аудио появились темп и тактовая сетка).
-3. **Собрать монтаж** — вручную на таймлайне или запросом к агенту на панели агента.
-4. **Посмотреть результат** — предпросмотр собирает прокси и играет его во встроенном
-   плеере.
-5. **Экспортировать** — выбрать формат и качество, дождаться прогресса.
+1. **Add folders** to the library from the UI (or set `MEDIA_ROOTS`) and wait for the
+   scan: files are indexed first, then their characteristics are read via ffprobe.
+2. **Analyze files** — the analysis button runs the selected files through
+   Qwen2.5-VL and stores the result in `meta.json`. Re-analysis with overwrite is a
+   separate button; you need it when the markup is stale (for example, after an
+   update that added tempo and beat-grid markup for audio).
+3. **Build the cut** — manually on the timeline, or by asking the agent in the agent
+   panel.
+4. **Preview the result** — the preview builds a proxy and plays it in the built-in
+   player.
+5. **Export** — pick a format and quality, wait for progress.
 
-Правила, по которым работает агент-монтажёр, лежат в [EDITOR_AGENT.md](EDITOR_AGENT.md)
-и читаются на каждом запуске — промпт можно править, не трогая код.
+The rules the editing agent follows live in [EDITOR_AGENT.md](EDITOR_AGENT.md) and are
+read on every run — you can edit the prompt without touching any code.
 
-## Где что хранится
+## Where things are stored
 
-Всё производное лежит рядом с медиатекой, в `<корень хранилища>/data` (переопределяется
-`DATA_DIR`):
+Everything derived lives next to your media library, in `<library root>/data`
+(overridable with `DATA_DIR`):
 
-| Путь | Содержимое |
+| Path | Contents |
 |---|---|
-| `app.db` | индекс файлов, метаданные, проекты, настройки |
-| `meta/` | `meta.json` по каждому файлу, структура повторяет хранилище |
-| `thumbs/` | миниатюры для списка файлов |
-| `proxy/` | прокси-файлы предпросмотра (хранятся последние 8) |
+| `app.db` | file index, metadata, projects, settings |
+| `meta/` | `meta.json` per file, mirroring the storage layout |
+| `thumbs/` | thumbnails for the file list |
+| `proxy/` | preview proxy files (last 8 kept) |
 
-Папку можно удалить целиком — приложение пересоберёт её, заново проанализировав файлы.
-Сайдкары старой схемы (`<файл>.meta.json` рядом с медиафайлом) по-прежнему читаются, но
-новые не создаются: медиатека остаётся нетронутой.
+The folder can be deleted entirely — the app will rebuild it, re-analyzing files as
+needed. Old-scheme sidecars (`<file>.meta.json` next to the media file) are still
+read, but new ones aren't created: your library stays untouched.
 
-## Подключение внешнего агента (MCP)
+## Connecting an external agent (MCP)
 
-Приложение поднимает MCP-сервер поверх тех же инструментов монтажа — можно отдать монтаж
-стороннему агенту. Транспорт — stdio:
+The app exposes an MCP server on top of the same editing tools — you can hand the
+edit off to a third-party agent. Transport is stdio:
 
 ```bash
 .venv/bin/python -m backend.mcp_server
 ```
 
-Для Claude Code достаточно одной команды:
+For Claude Code, one command is enough:
 
 ```bash
 claude mcp add intelligent-video-editor -- "$PWD/.venv/bin/python" -m backend.mcp_server
 ```
 
-Готовый фрагмент настройки клиента (например, `claude_desktop_config.json`):
+A ready client config snippet (e.g. for `claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "intelligent-video-editor": {
-      "command": "/путь/к/проекту/.venv/bin/python",
+      "command": "/path/to/project/.venv/bin/python",
       "args": ["-m", "backend.mcp_server"],
-      "cwd": "/путь/к/проекту"
+      "cwd": "/path/to/project"
     }
   }
 }
 ```
 
-Сервер работает с той же базой и тем же хранилищем, что и приложение, поэтому правки
-агента сразу видны в интерфейсе. Модель выбирает клиент — внутри сервера её нет, ключи
-из `.env` для этого не нужны.
+The server works against the same database and storage as the app, so the agent's
+edits show up in the UI immediately. The model is the client's choice — there's none
+inside the server, so `.env` keys aren't needed for this.
 
-Инструменты: работа с проектами (`list_projects`, `create_project`), подбор материала
-(`search_media`, `list_media`, `get_media_details`), музыка (`get_audio_bpm`,
-`get_audio_events`) и весь монтаж (`get_timeline`, `clear_timeline`, `add_clip`,
-`trim_clip`, `split_clip`, `move_clip`, `delete_clip`, `set_speed`, `set_fade`,
-`mute_clip`, `set_transition`, `clear_transition`, `add_text_clip`,
-`set_text_properties`, `close_gaps`). Каждый принимает `project_id` или `project_name`;
-без них берётся последний правленный проект. Правила монтажа отдаются как MCP-промпт
-`editing_rules` из того же `EDITOR_AGENT.md`.
+Tools: project management (`list_projects`, `create_project`), sourcing material
+(`search_media`, `list_media`, `get_media_details`), music (`get_audio_bpm`,
+`get_audio_events`), and the full editing surface (`get_timeline`, `clear_timeline`,
+`add_clip`, `trim_clip`, `split_clip`, `move_clip`, `delete_clip`, `set_speed`,
+`set_fade`, `mute_clip`, `set_transition`, `clear_transition`, `add_text_clip`,
+`set_text_properties`, `close_gaps`). Each one accepts `project_id` or
+`project_name`; without either, the most recently edited project is used. Editing
+rules are exposed as the MCP prompt `editing_rules`, sourced from the same
+`EDITOR_AGENT.md`.
 
-## Разработка
+## Development
 
 ```bash
-.venv/bin/python -m pytest backend/tests -q     # весь набор
-cd frontend && npx tsc --noEmit                 # проверка типов фронтенда
+.venv/bin/python -m pytest backend/tests -q     # full suite
+cd frontend && npx tsc --noEmit                 # frontend type check
 cd frontend && npm run lint                     # oxlint
 ```
 
-Тестам, которым нужен настоящий ffmpeg, он и достаётся: они гоняют бинарники на
-синтетических файлах через `lavfi`, а не подменяют их заглушками. Без ffmpeg в `PATH`
-такие тесты пропускаются.
+Tests that need a real ffmpeg get one: they run the actual binaries against
+synthetic files generated via `lavfi`, rather than mocking ffmpeg out. Without
+ffmpeg on `PATH`, those tests are skipped.
 
-### Структура репозитория
+### Repository layout
 
 ```
 backend/
   app/
-    agent/        цикл агента, инструменты, семантический поиск
-    analysis/     анализ через Ollama, схемы meta.json
-    ffmpeg/       обёртки над ffmpeg: probe, кадры, компиляция, bpm, аудиособытия
+    agent/        agent loop, tools, semantic search
+    analysis/     analysis via Ollama, meta.json schemas
+    ffmpeg/       ffmpeg wrappers: probe, frames, compile, bpm, audio events
     routers/      REST API
-    timeline/     модель таймлайна и операции над клипами
-  mcp_server.py   MCP-сервер поверх тех же инструментов
+    timeline/     timeline model and clip operations
+  mcp_server.py   MCP server on top of the same tools
   tests/
 frontend/src/     React + TypeScript, SPA
-EDITOR_AGENT.md   системный промпт агента-монтажёра
+EDITOR_AGENT.md   system prompt for the editing agent
 ```
 
-Ключевая идея архитектуры: **один слой операций над таймлайном, три потребителя.**
-`backend/app/timeline/ops.py` содержит все правки таймлайна с проверками; поверх него
-работают REST API (ручное редактирование из UI), инструменты агента и MCP-сервер —
-без дублирования логики.
+Core architectural idea: **one layer of timeline operations, three consumers.**
+`backend/app/timeline/ops.py` holds every timeline edit with its checks; the REST
+API (manual editing from the UI), the agent's tools, and the MCP server all sit on
+top of it — no duplicated logic.
 
-## Статус
+## Status
 
-Базовая функциональность (индексация, ffmpeg, анализ, редактор таймлайна, предпросмотр,
-экспорт, агент-монтажёр с MCP-сервером) реализована и покрыта тестами. Упаковка в
-нативную оболочку (Electron/Tauri) не сделана, поэтому приложение пока запускается
-двумя процессами из консоли, как описано выше.
+Core functionality (indexing, ffmpeg, analysis, timeline editor, preview, export,
+editing agent with an MCP server) is implemented and covered by tests. Packaging
+into a native shell (Electron/Tauri) hasn't been done yet, so for now the app runs
+as two console processes, as described above.
 
-## Лицензия
+## License
 
 [GPL-3.0](LICENSE).
