@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import tempfile
+from collections import Counter
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -109,7 +110,24 @@ def analyze_video(
         "objects": summary.objects,
         "style": summary.style,
         "emotions": summary.emotions,
+        "quality": predominant_quality(scenes),
     }
+
+
+def predominant_quality(scenes: list[dict]) -> str:
+    """Качество файла целиком — самое частое по сценам.
+
+    Сводка видео строится по тексту описаний, картинку модель там не видит, поэтому
+    оценить качество на уровне файла она не может — берём его из покадровых оценок.
+    Мода, а не худшее: одна тёмная сцена не должна прятать весь файл из поиска, а
+    для выбора конкретного фрагмента у агента остаётся `scenes[].quality`.
+    """
+    votes = Counter(s["quality"] for s in scenes if s.get("quality"))
+    if not votes:
+        return ""
+    # При равенстве голосов побеждает более осторожная оценка.
+    order = {"низкое": 0, "среднее": 1, "высокое": 2}
+    return min(votes, key=lambda q: (-votes[q], order.get(q, 1)))
 
 
 def audio_rhythm(path: Path, duration: float | None = None) -> dict:

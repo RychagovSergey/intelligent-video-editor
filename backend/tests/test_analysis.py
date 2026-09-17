@@ -116,6 +116,29 @@ def test_video_analysis_builds_scenes_and_summary(clip: Path) -> None:
     assert client.calls[-1][1] == 0
 
 
+def test_video_quality_is_taken_from_frames_not_summary(clip: Path) -> None:
+    """Сводка видео не видит картинку — качество файла складывается из покадровых оценок."""
+    frames = [
+        json.dumps({"description": "кадр", "quality": q}, ensure_ascii=False)
+        for q in ("высокое", "низкое", "высокое")
+    ]
+    summary_answer = json.dumps({"summary": "общее описание"}, ensure_ascii=False)
+    client = FakeClient(*frames, summary_answer)
+
+    meta = analyze_file(clip, MediaType.video, model="m", client=client, every_seconds=2.0, max_frames=3)
+
+    assert [s["quality"] for s in meta["scenes"]] == ["высокое", "низкое", "высокое"]
+    assert meta["quality"] == "высокое"   # мода, а не худшее: одна тёмная сцена файл не топит
+
+
+def test_predominant_quality_prefers_caution_on_tie() -> None:
+    from backend.app.analysis.analyzer import predominant_quality
+
+    assert predominant_quality([{"quality": "высокое"}, {"quality": "низкое"}]) == "низкое"
+    assert predominant_quality([{"quality": ""}, {}]) == ""
+    assert predominant_quality([]) == ""
+
+
 def test_audio_needs_no_model(tmp_path: Path) -> None:
     track = tmp_path / "track.mp3"
     ffmpeg("-f", "lavfi", "-i", "sine=frequency=440:duration=2", str(track))

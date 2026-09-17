@@ -529,3 +529,28 @@ def test_search_media_filters_audio_by_tempo(ctx: Context, monkeypatch) -> None:
 def test_bpm_gets_into_searchable_text(ctx: Context) -> None:
     """У аудио нет описания — темп остаётся единственной приметой для поиска словами."""
     assert "110 BPM" in searchable_text(json.dumps({"type": "audio", "bpm": 110.0}), "track.mp3")
+
+
+# --- качество материала: структурное поле вместо «избегай тёмных кадров» в промпте ---
+
+
+def test_get_media_details_exposes_quality(ctx: Context) -> None:
+    """Поле quality лежало в meta.json изображений с первого дня, но агенту не отдавалось."""
+    ctx.db.query(MetaCache).filter_by(file_id=1).delete()
+    ctx.db.add(MetaCache(file_id=1, meta_json=json.dumps({
+        "summary": "улица", "quality": "низкое",
+        "scenes": [{"time": 0.0, "description": "темно", "quality": "низкое"},
+                   {"time": 2.0, "description": "светло", "quality": "высокое"}],
+    }, ensure_ascii=False)))
+    ctx.db.flush()
+
+    result = execute(ctx, "get_media_details", {"source_id": 1})
+
+    assert result["quality"] == "низкое"
+    assert [s["quality"] for s in result["scenes"]] == ["низкое", "высокое"]
+
+
+def test_quality_gets_into_searchable_text() -> None:
+    """Качество видно прямо в summary выдачи — без get_media_details на каждого кандидата."""
+    assert "качество низкое" in searchable_text(json.dumps({"quality": "низкое"}), "dark.mp4")
+    assert "качество" not in searchable_text(json.dumps({"summary": "без оценки"}), "old.mp4")

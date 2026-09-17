@@ -53,13 +53,15 @@ class SceneMeta(BaseModel):
     objects: list[str] = Field(default_factory=list)
     style: str = ""
     colors: list[str] = Field(default_factory=list)
+    #: Техническое качество кадра (высокое/среднее/низкое) — то же поле, что у ImageMeta.
+    quality: str = ""
 
     @field_validator("objects", "colors", mode="before")
     @classmethod
     def _lists(cls, v: Any) -> list[str]:
         return _as_list(v)
 
-    @field_validator("description", "style", mode="before")
+    @field_validator("description", "style", "quality", mode="before")
     @classmethod
     def _texts(cls, v: Any) -> str:
         return _as_text(v)

@@ -189,6 +189,8 @@ def tool_get_media_details(ctx: Context, args: dict) -> dict:
         view["objects"] = meta.get("objects") or []
         view["style"] = meta.get("style") or ""
         view["emotions"] = meta.get("emotions") or ""
+        if meta.get("quality"):
+            view["quality"] = meta["quality"]
         if meta.get("bpm"):
             view["bpm"] = meta["bpm"]
     return view
@@ -495,7 +497,9 @@ TOOL_SPECS = [
     }),
     _spec("get_media_details",
           "Полные метаданные файла: описание, объекты и сцены с таймкодами — "
-          "по ним можно выбрать конкретный фрагмент внутри видео.", {
+          "по ним можно выбрать конкретный фрагмент внутри видео. У файла и у каждой "
+          "сцены есть quality (высокое/среднее/низкое): тёмные, размытые и смазанные "
+          "кадры помечены «низкое» — фрагмент бери из сцен с качеством не ниже среднего.", {
               "source_id": {"type": "integer"},
           }, ["source_id"]),
     _spec("get_timeline", "Показать текущий монтаж: дорожки и клипы с их id.", {}),

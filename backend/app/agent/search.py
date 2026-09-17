@@ -59,6 +59,11 @@ def searchable_text(meta_json: str | None, filename: str) -> str:
             parts.append(value)
     if isinstance(data.get("bpm"), (int, float)) and data["bpm"]:
         parts.append(f"{data['bpm']:g} BPM")
+    # Качество — в текст выдачи, а не отдельным полем: агент видит его в summary
+    # каждого результата без лишнего get_media_details, а эмбеддинг «низкое качество»
+    # сам по себе отодвигает такой файл от типичных запросов.
+    if isinstance(data.get("quality"), str) and data["quality"]:
+        parts.append(f"качество {data['quality']}")
     for key in ("objects", "colors"):
         value = data.get(key)
         if isinstance(value, list):
