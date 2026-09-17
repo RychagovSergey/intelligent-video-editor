@@ -28,8 +28,9 @@ class Settings(BaseSettings):
 
     # --- анализ (Р-9) ---
     ollama_base_url: str = "http://localhost:11434"
-    vl_model: str = "qwen2.5vl:7b"
-    vl_model_fast: str = "qwen2.5vl:3b"
+    #: Суффикс -mlx — сборка под Apple Silicon; на Linux/Windows те же модели без него.
+    vl_model: str = "qwen3.5:4b-mlx"
+    vl_model_fast: str = "qwen3.5:0.8b-mlx"
     frame_sample_seconds: float = 2.0
     #: Предел кадров на одно видео: определяет фактический шаг выборки (см. ffmpeg/frames.py).
     max_frames: int = 5

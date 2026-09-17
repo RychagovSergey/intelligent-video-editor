@@ -5,9 +5,9 @@
 Project page: [rsa-labs.dev/computer-vision/video-ai-editor](https://rsa-labs.dev/computer-vision/video-ai-editor/)
 
 A desktop app for rough-cut video editing: local semantic analysis of your media
-library via Qwen2.5-VL, a timeline editor, ffmpeg-based preview and export, plus an
-LLM agent that assembles a rough cut from a text prompt ("make a punchy one-minute
-clip from the ocean shots, cut to this track").
+library (Qwen3.5 through Ollama), a timeline editor, ffmpeg-based preview and export,
+plus an LLM agent that assembles a rough cut from a text prompt ("make a punchy
+one-minute clip from the ocean shots, cut to this track").
 
 Everything about your media's *content* stays **local**: frame descriptions, objects
 and scenes with timestamps, music tempo and beat grid. The only thing that leaves your
@@ -19,7 +19,7 @@ machine is the text of a request to the editing agent — and only if you use th
 
 - **Storage indexing** — recursive incremental scan, file characteristics via
   ffprobe, thumbnails, corrupted files flagged.
-- **Media analysis via Qwen2.5-VL** (local, through Ollama) — description, objects,
+- **Media analysis via a local VL model** (Qwen3.5 through Ollama) — description, objects,
   style, mood; for video, scenes with timestamps so you can pick the right moment
   inside a long clip. Queue with progress, cancellation, and a lighter/faster model
   option.
@@ -65,8 +65,9 @@ python3.12 -m venv .venv
 
 npm install --prefix frontend
 
-ollama pull qwen2.5vl:7b
-ollama pull qwen2.5vl:3b
+# Apple Silicon (MLX build); on Linux/Windows drop the -mlx suffix: qwen3.5:4b, qwen3.5:0.8b
+ollama pull qwen3.5:4b-mlx
+ollama pull qwen3.5:0.8b-mlx
 ```
 
 ## Configure
@@ -82,7 +83,7 @@ can also be added from the UI.
 |---|---|
 | `MEDIA_ROOTS` | media library roots, comma-separated, `~` is expanded |
 | `DATA_DIR` | cache folder; empty — `data` inside the first root |
-| `VL_MODEL`, `VL_MODEL_FAST` | analysis models in Ollama (regular and fast) |
+| `VL_MODEL`, `VL_MODEL_FAST` | analysis models in Ollama (regular and fast); `qwen2.5vl:7b` also works, about 3× slower |
 | `OLLAMA_BASE_URL` | Ollama address, defaults to `http://localhost:11434` |
 | `FRAME_SAMPLE_SECONDS`, `MAX_FRAMES` | frame sampling step and cap per video |
 | `MODEL_IMAGE_MAX_SIDE` | max side to downscale frames to before sending to the model (640) |
@@ -120,7 +121,7 @@ The dev server proxies `/api` to port 8001; for a different port use
 1. **Add folders** to the library from the UI (or set `MEDIA_ROOTS`) and wait for the
    scan: files are indexed first, then their characteristics are read via ffprobe.
 2. **Analyze files** — the analysis button runs the selected files through
-   Qwen2.5-VL and stores the result in `meta.json`. Re-analysis with overwrite is a
+   the VL model and stores the result in `meta.json`. Re-analysis with overwrite is a
    separate button; you need it when the markup is stale (for example, after an
    update that added tempo and beat-grid markup for audio).
 3. **Build the cut** — manually on the timeline, or by asking the agent in the agent
