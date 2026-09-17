@@ -2,6 +2,8 @@
 
 **English | [Русский](README_RU.md)**
 
+Project page: [rsa-labs.dev/computer-vision/video-ai-editor](https://rsa-labs.dev/computer-vision/video-ai-editor/)
+
 A desktop app for rough-cut video editing: local semantic analysis of your media
 library via Qwen2.5-VL, a timeline editor, ffmpeg-based preview and export, plus an
 LLM agent that assembles a rough cut from a text prompt ("make a punchy one-minute
