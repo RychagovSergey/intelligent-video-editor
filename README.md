@@ -21,8 +21,10 @@ machine is the text of a request to the editing agent — and only if you use th
   ffprobe, thumbnails, corrupted files flagged.
 - **Media analysis via a local VL model** (Qwen3.5 through Ollama) — description, objects,
   style, mood; for video, scenes with timestamps so you can pick the right moment
-  inside a long clip. Queue with progress, cancellation, and a lighter/faster model
-  option.
+  inside a long clip. Every frame and file gets a technical quality grade
+  (high / medium / low — dark, blurred, motion-smeared or noisy footage), so the
+  agent can skip bad material instead of being asked to. Queue with progress,
+  cancellation, and a lighter/faster model option.
 - **Audio rhythm markup** — tempo, beats and bars (`beat_times`, `downbeats`), silences
   and volume peaks. Computed once during analysis, so a track can be picked by tempo.
 - **Timeline editor** — three tracks (video, audio, text), add/move/trim/split/speed/
@@ -30,10 +32,14 @@ machine is the text of a request to the editing agent — and only if you use th
 - **Preview** — 640×360 cached proxy render with a built-in player; optionally a
   separate ffplay window.
 - **Export** — MP4/H.264 (CRF 18/23/28 or bitrate), MOV/ProRes, WebM/VP9; progress with
-  time estimate, cancellation, free-space check.
+  time estimate, cancellation, free-space check. The final mix is normalized to
+  −14 LUFS (streaming level) in both preview and export, so projects cut on
+  differently mastered tracks don't jump in loudness relative to each other.
 - **Editing agent** — assembles a rough cut from a text prompt via an external LLM
   with function calling, built on the same timeline operations; semantic material
-  search (description embeddings), action log in the UI.
+  search (description embeddings), action log in the UI. Cuts land on the beat
+  grid, transitions only on phrase boundaries the music actually has, and material
+  is filtered by the quality grade — all from computed data, not prompt wishes.
 - **MCP server** — the same editing tools exposed to an external agent (Claude Code,
   Claude Desktop, etc.).
 
@@ -123,7 +129,7 @@ The dev server proxies `/api` to port 8001; for a different port use
 2. **Analyze files** — the analysis button runs the selected files through
    the VL model and stores the result in `meta.json`. Re-analysis with overwrite is a
    separate button; you need it when the markup is stale (for example, after an
-   update that added tempo and beat-grid markup for audio).
+   update that added tempo markup for audio or quality grades for video frames).
 3. **Build the cut** — manually on the timeline, or by asking the agent in the agent
    panel.
 4. **Preview the result** — the preview builds a proxy and plays it in the built-in
@@ -202,7 +208,9 @@ cd frontend && npm run lint                     # oxlint
 
 Tests that need a real ffmpeg get one: they run the actual binaries against
 synthetic files generated via `lavfi`, rather than mocking ffmpeg out. Without
-ffmpeg on `PATH`, those tests are skipped.
+ffmpeg on `PATH`, those tests are skipped. `test_e2e.py` walks the whole pipeline
+in one go — scan → analysis (VL model faked, beat tracking real) → agent tools →
+save → export — through the same functions the app calls.
 
 ### Repository layout
 
