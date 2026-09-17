@@ -24,6 +24,15 @@ ATEMPO_MIN = 0.5              # ограничение фильтра atempo, з
 ATEMPO_MAX = 2.0
 TEXT_FADE_SECONDS = 0.4       # фиксированная длительность fade in/out у текстового слоя
 
+#: Громкость итогового микса приводится к −14 LUFS (уровень стриминговых платформ):
+#: без этого проекты, собранные на треках разного мастеринга, скачут по громкости
+#: между собой, а `amix` с `normalize=0` дорожки просто складывает. Однопроходный
+#: (динамический) режим — второй проход измерения удвоил бы время рендера; плата —
+#: медленное подтягивание тихих мест, которое затухания 1–2 с почти не трогает.
+#: `aresample` обязателен: внутри loudnorm работает на 192 кГц и без него отдал бы
+#: такой поток кодеку. `dual_mono` — чтобы моно-микс не считался на 3 LU тише.
+MASTER_AUDIO_FILTER = "loudnorm=I=-14:TP=-1.5:LRA=11:dual_mono=true,aresample=48000"
+
 
 class CompileError(RuntimeError):
     """Таймлайн нельзя собрать: нет исходников, пустой проект и т. п."""
@@ -206,12 +215,13 @@ def build_command(
     has_audio = bool(audio_labels)
     if has_audio:
         if len(audio_labels) == 1:
-            filters.append(f"[{audio_labels[0]}]anull[aout]")
+            filters.append(f"[{audio_labels[0]}]anull[amix]")
         else:
             filters.append(
                 "".join(f"[{a}]" for a in audio_labels)
-                + f"amix=inputs={len(audio_labels)}:duration=longest:normalize=0[aout]"
+                + f"amix=inputs={len(audio_labels)}:duration=longest:normalize=0[amix]"
             )
+        filters.append(f"[amix]{MASTER_AUDIO_FILTER}[aout]")
 
     args = ["-hide_banner", "-loglevel", "error", "-y", *inputs,
             "-filter_complex", ";".join(filters), "-map", "[vout]"]

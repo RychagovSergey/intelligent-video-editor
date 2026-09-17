@@ -331,3 +331,60 @@ def test_mixed_concat_and_transition_chain_renders(media, tmp_path: Path) -> Non
 
     assert out.exists()
     assert abs(probe(out).duration - 5.7) < 0.2   # 2+2+2-0.3 (один переход укорачивает на 0.3)
+
+
+# --- нормализация громкости финального микса (Р-22) ---
+
+
+def _mean_volume_db(path: Path, *, start: float | None = None, duration: float | None = None) -> float:
+    """Средняя громкость файла (или его отрезка) через volumedetect, дБ."""
+    args = [settings.binary("ffmpeg"), "-hide_banner", "-nostats"]
+    if start is not None:
+        args += ["-ss", str(start)]
+    if duration is not None:
+        args += ["-t", str(duration)]
+    args += ["-i", str(path), "-vn", "-af", "volumedetect", "-f", "null", "-"]
+    result = subprocess.run(args, capture_output=True, text=True, check=True)
+    for line in result.stderr.splitlines():
+        if "mean_volume:" in line:
+            return float(line.split("mean_volume:")[1].split("dB")[0])
+    raise AssertionError("volumedetect не вернул mean_volume")
+
+
+def test_quiet_mix_is_normalized_to_streaming_loudness(media, tmp_path: Path) -> None:
+    """Тихий трек на выходе громче исходника — иначе проекты на разных треках скачут по громкости."""
+    db, files = media
+    quiet = tmp_path / "quiet.mp3"
+    ffmpeg("-f", "lavfi", "-i", "sine=frequency=220:duration=8", "-af", "volume=0.03", str(quiet))
+    row = MediaFile(folder_id=files["music"].folder_id, filename="quiet.mp3", path=str(quiet),
+                    type=MediaType.audio, size=1, modified=1.0, duration=8.0, has_audio=True,
+                    analysis_status=AnalysisStatus.pending)
+    db.add(row)
+    db.flush()
+
+    tl = empty_timeline()
+    ops.add_clip(tl, source_id=files["silent"].id, kind="video", name="silent.mp4", source_duration=4.0)
+    ops.add_clip(tl, source_id=row.id, kind="audio", name="quiet.mp3", source_duration=8.0, out_point=4.0)
+    out = tmp_path / "normalized.mp4"
+    command = build_command(db, tl, out, PREVIEW_PRESET)
+    render(command)
+
+    assert "loudnorm" in " ".join(command.args)
+    assert _mean_volume_db(out) > _mean_volume_db(quiet) + 10   # подняли на порядок, не «чуть-чуть»
+    assert probe(out).has_audio is True
+
+
+def test_fade_out_still_ends_in_silence_after_normalization(media, tmp_path: Path) -> None:
+    """Динамический loudnorm не должен «вытягивать» намеренное затухание в конце."""
+    db, files = media
+    tl = empty_timeline()
+    ops.add_clip(tl, source_id=files["silent"].id, kind="video", name="silent.mp4", source_duration=4.0)
+    music = ops.add_clip(tl, source_id=files["music"].id, kind="audio", name="music.mp3",
+                         source_duration=20.0, out_point=4.0)
+    ops.set_fade(tl, music.id, fade_out=1.5)
+    out = tmp_path / "faded.mp4"
+    render(build_command(db, tl, out, PREVIEW_PRESET))
+
+    loud_part = _mean_volume_db(out, start=0.5, duration=1.5)
+    tail = _mean_volume_db(out, start=3.7, duration=0.3)
+    assert tail < loud_part - 15   # хвост затухания заметно тише основной части
