@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
+import { isDesktop, pickFolder } from '../desktop'
 import type { ExportStatus } from '../api/types'
 
 const CONTAINERS = [
@@ -62,12 +63,22 @@ export function ExportDialog({ projectId, projectName, onClose, onStarted }: Pro
 
         <label className="field">
           <span>Папка назначения</span>
-          <input
-            type="text"
-            value={directory}
-            onChange={(e) => setDirectory(e.target.value)}
-            placeholder="~/Movies"
-          />
+          <div className="field-inline">
+            <input
+              type="text"
+              value={directory}
+              onChange={(e) => setDirectory(e.target.value)}
+              placeholder="~/Movies"
+            />
+            {isDesktop() && (
+              <button
+                type="button"
+                onClick={() => pickFolder('Папка для экспорта').then((p) => { if (p) setDirectory(p) })}
+              >
+                Выбрать…
+              </button>
+            )}
+          </div>
         </label>
 
         <label className="field">

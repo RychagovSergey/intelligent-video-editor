@@ -9,9 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import init_db
-from .routers import agent, analysis, media, projects, storage
+from .logbuffer import install as install_log_buffer
+from .routers import agent, analysis, media, projects, settings as settings_router, storage
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpx пишет каждый запрос к Ollama и провайдеру агента на INFO — в журнале это шум.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+install_log_buffer()
 
 
 @asynccontextmanager
@@ -35,6 +39,7 @@ app.include_router(media.router)
 app.include_router(analysis.router)
 app.include_router(projects.router)
 app.include_router(agent.router)
+app.include_router(settings_router.router)
 
 
 @app.get("/api/health")

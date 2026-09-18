@@ -32,3 +32,8 @@ Thumbs.db
 
 # Логи
 *.log
+
+# Tauri: сборка Rust и вшиваемые статические ffmpeg/ffprobe/ffplay (scripts/fetch-ffmpeg.sh)
+frontend/src-tauri/target/
+frontend/src-tauri/binaries/
+frontend/src-tauri/gen/

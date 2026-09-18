@@ -1,7 +1,7 @@
 import type {
-  AnalyzeRequest, AnalyzeStatus, FileMeta, Folder, Health, MediaList, ModelsInfo,
-  AgentInfo, AgentStatus, ExportRequest, ExportStatus, PreviewStatus, ProjectInfo,
-  RootInfo, ScanStatus,
+  AnalyzeRequest, AnalyzeStatus, EnvCheck, FileMeta, Folder, Health, LogsOut, MediaList, MetaPatch,
+  ModelsInfo, AgentInfo, AgentStatus, ExportRequest, ExportStatus, PreviewStatus, ProjectInfo,
+  RootInfo, ScanStatus, SettingsView,
   StorageStats, TextAnimation, TextPosition, Timeline, TimelineState, TransitionKind, WaveformOut,
 } from './types'
 
@@ -17,8 +17,13 @@ function errorMessage(body: { detail?: unknown }, res: Response): string {
   return `${res.status} ${res.statusText}`
 }
 
+/** В браузере /api проксирует Vite; в оболочке Tauri адрес backend подставляет она сама. */
+const BASE = typeof window !== 'undefined' && window.__IVE_BACKEND__ ? window.__IVE_BACKEND__ : ''
+
+export const apiUrl = (path: string) => `${BASE}${path}`
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     headers: { 'Content-Type': 'application/json' },
     ...init,
   })
@@ -63,10 +68,12 @@ export const api = {
   },
 
   meta: (fileId: number) => request<FileMeta>(`/api/media/${fileId}/meta`),
+  updateMeta: (fileId: number, patch: MetaPatch) =>
+    request<FileMeta>(`/api/media/${fileId}/meta`, { method: 'PUT', body: JSON.stringify(patch) }),
 
   thumbnailUrl: (fileId: number, width?: number) =>
-    `/api/media/${fileId}/thumbnail${width ? `?width=${width}` : ''}`,
-  mediaFileUrl: (fileId: number) => `/api/media/${fileId}/file`,
+    apiUrl(`/api/media/${fileId}/thumbnail${width ? `?width=${width}` : ''}`),
+  mediaFileUrl: (fileId: number) => apiUrl(`/api/media/${fileId}/file`),
   playable: (fileId: number) =>
     request<{ kind: string; extension: string; native: boolean }>(`/api/media/${fileId}/playable`),
   playInFfplay: (fileId: number) =>
@@ -166,4 +173,10 @@ export const api = {
     request<{ pending_total: number; pending_video: number; pending_image: number; pending_audio: number }>(
       `/api/analyze/estimate${folderId != null ? `?folder_id=${folderId}&recursive=true` : ''}`,
     ),
+
+  settings: () => request<SettingsView>('/api/settings'),
+  saveSettings: (values: Record<string, string | number>) =>
+    request<SettingsView>('/api/settings', { method: 'PUT', body: JSON.stringify({ values }) }),
+  checkEnv: () => request<EnvCheck[]>('/api/settings/check'),
+  logs: (after = 0, limit = 200) => request<LogsOut>(`/api/logs?after=${after}&limit=${limit}`),
 }

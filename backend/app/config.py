@@ -8,6 +8,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ENV_FILE = PROJECT_ROOT / ".env"
 
 
 def expand(path: str | Path) -> Path:
@@ -16,7 +17,7 @@ def expand(path: str | Path) -> Path:
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=PROJECT_ROOT / ".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
         populate_by_name=True,
@@ -97,8 +98,22 @@ class Settings(BaseSettings):
         """Путь к ffmpeg/ffprobe/ffplay: сначала из .env, затем из PATH."""
         override = getattr(self, f"{name}_path", "") or ""
         if override:
-            return override if Path(override).exists() else None
+            path = expand(override)
+            return str(path) if path.exists() else None
         return shutil.which(name)
 
 
 settings = Settings()
+
+
+def reload_settings() -> None:
+    """Перечитывает `.env` в существующий объект `settings`.
+
+    Модули импортируют сам объект (`from .config import settings`), поэтому подменять
+    его новым экземпляром нельзя — обновляем поля на месте. Не касается того, что
+    вычислено при импорте по старым значениям: путь к базе (`DATA_DIR`) требует
+    перезапуска, и панель настроек об этом предупреждает.
+    """
+    fresh = Settings()
+    for name in Settings.model_fields:
+        setattr(settings, name, getattr(fresh, name))

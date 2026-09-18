@@ -7,7 +7,7 @@ interface Props {
   info: AgentInfo | null
   status: AgentStatus | null
   onStatus: (status: AgentStatus) => void
-  onFinished: () => void
+  onFinished: (status: AgentStatus) => void
 }
 
 /** Поле команды агенту и лог его действий — нижняя панель из макета (ТЗ п. 3.7). */
@@ -29,7 +29,7 @@ export function AgentPanel({ projectId, info, status, onStatus, onFinished }: Pr
       const s = await api.agentStatus().catch(() => null)
       if (!s) return
       onStatus(s)
-      if (s.state !== 'running') onFinished()
+      if (s.state !== 'running') onFinished(s)
     }, 1000)
     return () => { if (timer.current) window.clearInterval(timer.current) }
   }, [running, onStatus, onFinished])

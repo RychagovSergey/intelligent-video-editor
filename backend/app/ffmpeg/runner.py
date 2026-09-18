@@ -38,4 +38,8 @@ def run(name: str, args: list[str], timeout: float = DEFAULT_TIMEOUT) -> Result:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
         return Result(False, "", f"Превышено время ожидания {name} ({timeout:.0f} с)", -1)
+    if proc.returncode != 0:
+        # В панель логов уходит хвост stderr: именно там ffmpeg объясняет, что не так.
+        tail = proc.stderr.strip().splitlines()[-3:]
+        log.warning("%s завершился с кодом %d: %s", name, proc.returncode, " | ".join(tail))
     return Result(proc.returncode == 0, proc.stdout, proc.stderr, proc.returncode)

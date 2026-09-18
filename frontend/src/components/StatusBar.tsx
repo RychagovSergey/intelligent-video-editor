@@ -15,11 +15,15 @@ interface Props {
   onCancelPreview: () => void
   onCancelExport: () => void
   onRevealExport: () => void
+  logsOpen: boolean
+  onToggleLogs: () => void
+  onOpenSettings: () => void
 }
 
 export function StatusBar({
   health, scan, analyze, preview, exportState, stats, backendError,
   onCancelAnalysis, onCancelPreview, onCancelExport, onRevealExport,
+  logsOpen, onToggleLogs, onOpenSettings,
 }: Props) {
   const scanning = scan?.state === 'running'
   const analyzing = analyze?.state === 'running'
@@ -53,13 +57,17 @@ export function StatusBar({
         {backendError ? <span className="error-text">Backend недоступен: {backendError}</span> : 'Backend'}
       </span>
       {health && (
-        <span title="ffmpeg / ffprobe / ffplay">
+        <span title="ffmpeg / ffprobe / ffplay" className="status-link" onClick={onOpenSettings}>
           ffmpeg {health.ffmpeg ? '✓' : <span className="error-text">не найден</span>}
         </span>
       )}
-      {health && <span title="Модели анализа (Р-9)">VL: {health.vl_model} / {health.vl_model_fast}</span>}
       {health && (
-        <span title="Провайдер агента (Р-10)">
+        <span title="Модели анализа (Р-9)" className="status-link" onClick={onOpenSettings}>
+          VL: {health.vl_model} / {health.vl_model_fast}
+        </span>
+      )}
+      {health && (
+        <span title="Провайдер агента (Р-10)" className="status-link" onClick={onOpenSettings}>
           Агент: {health.agent_provider} {health.agent_configured ? '✓' : <span className="error-text">нет ключа</span>}
         </span>
       )}
@@ -80,6 +88,9 @@ export function StatusBar({
         <span className="progress"><i style={{ width: `${Math.round(progress * 100)}%` }} /></span>
       )}
       <span className={scan?.state === 'error' ? 'error-text' : ''}>{scanText}</span>
+      <button className={logsOpen ? 'active' : ''} onClick={onToggleLogs} title="Показать журнал backend">
+        Журнал
+      </button>
     </div>
   )
 }

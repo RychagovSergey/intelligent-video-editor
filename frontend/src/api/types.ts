@@ -261,3 +261,60 @@ export interface AgentInfo {
   instructions_file: string
   instructions_found: boolean
 }
+
+/* --- панель настроек, проверка окружения, логи (этап 8) --- */
+
+export type SettingKind = 'text' | 'secret' | 'int' | 'float' | 'select'
+
+export interface SettingField {
+  key: string
+  label: string
+  kind: SettingKind
+  hint: string
+  restart: boolean
+  options: string[]
+  placeholder: string
+  value: string | number
+  default: string | number
+  /** Переменная окружения процесса перекрывает .env — правка из панели не подействует. */
+  overridden: boolean
+}
+
+export interface SettingsGroup {
+  id: string
+  title: string
+  fields: SettingField[]
+}
+
+export interface SettingsView {
+  env_file: string
+  env_exists: boolean
+  groups: SettingsGroup[]
+  saved?: string[]
+  restart_required?: boolean
+}
+
+export interface EnvCheck {
+  id: string
+  level: 'ok' | 'warn' | 'error'
+  text: string
+  hint: string
+}
+
+export interface LogEntry {
+  seq: number
+  ts: string
+  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL'
+  logger: string
+  message: string
+}
+
+export interface LogsOut {
+  entries: LogEntry[]
+  last_seq: number
+}
+
+export interface MetaPatch {
+  fields?: Record<string, unknown>
+  scenes?: Record<number, Record<string, unknown>>
+}

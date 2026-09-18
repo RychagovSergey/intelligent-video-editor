@@ -1,3 +1,4 @@
+import { apiUrl } from '../api/client'
 import { useEffect, useRef, useState } from 'react'
 import { formatDuration } from '../format'
 import type { PreviewStatus } from '../api/types'
@@ -25,7 +26,7 @@ export function PreviewPlayer({
   const hasProxy = projectId != null &&
     (preview?.state === 'ready' || preview?.state === 'playing' || preview?.state === 'done') &&
     preview?.project_id === projectId
-  const src = hasProxy ? `/api/projects/${projectId}/preview/file` : null
+  const src = hasProxy ? apiUrl(`/api/projects/${projectId}/preview/file`) : null
 
   useEffect(() => {
     setReady(false)

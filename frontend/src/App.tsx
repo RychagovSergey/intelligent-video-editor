@@ -5,11 +5,15 @@ import { MediaTree } from './components/MediaTree'
 import { MetaPanel } from './components/MetaPanel'
 import { AgentPanel } from './components/AgentPanel'
 import { ExportDialog } from './components/ExportDialog'
+import { LogPanel } from './components/LogPanel'
 import { PreviewPlayer } from './components/PreviewPlayer'
+import { SettingsDialog } from './components/SettingsDialog'
 import { StatusBar } from './components/StatusBar'
 import { Timeline } from './components/Timeline'
+import { Toasts } from './components/Toasts'
+import { notify, requestNotificationPermission } from './notifications'
 import type {
-  AgentInfo, AgentStatus, AnalyzeStatus, ExportStatus, Folder, Health, MediaFile,
+  AgentInfo, AgentStatus, AnalyzeStatus, EnvCheck, ExportStatus, Folder, Health, MediaFile,
   ModelsInfo, PreviewStatus, ProjectInfo, ScanStatus, StorageStats, TimelineState,
 } from './api/types'
 
@@ -45,6 +49,10 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false)
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null)
   const [agent, setAgent] = useState<AgentStatus | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [logsOpen, setLogsOpen] = useState(false)
+  const [envProblems, setEnvProblems] = useState<EnvCheck[]>([])
+  const [envBannerHidden, setEnvBannerHidden] = useState(false)
 
   const [query, setQuery] = useState('')
   const [recursive, setRecursive] = useState(true)
@@ -61,21 +69,29 @@ export default function App() {
     api.estimate(folderId).then((e) => setPending(e.pending_total)).catch(() => undefined)
   }, [])
 
-  useEffect(() => {
+  /** Перечитать сведения об окружении — при старте и после сохранения настроек. */
+  const refreshEnvironment = useCallback(() => {
     api.health()
       .then((h) => { setHealth(h); setBackendError(null) })
       .catch((e: Error) => setBackendError(e.message))
-    api.scanStatus().then(setScan).catch(() => undefined)
-    api.analyzeStatus().then(setAnalyze).catch(() => undefined)
     api.models().then(setModels).catch(() => undefined)
     api.agentInfo().then(setAgentInfo).catch(() => undefined)
+    // Баннер — только для того, без чего приложение не работает (ТЗ п. 5);
+    // предупреждения видны внутри панели настроек.
+    api.checkEnv().then((checks) => setEnvProblems(checks.filter((c) => c.level === 'error'))).catch(() => undefined)
+  }, [])
+
+  useEffect(() => {
+    refreshEnvironment()
+    api.scanStatus().then(setScan).catch(() => undefined)
+    api.analyzeStatus().then(setAnalyze).catch(() => undefined)
     api.agentStatus().then(setAgent).catch(() => undefined)
     api.projects().then((list) => {
       setProjects(list)
       if (list.length > 0) setProjectId(list[0].id)   // открываем последний правленный
     }).catch(() => undefined)
     refreshCounters()
-  }, [refreshCounters])
+  }, [refreshCounters, refreshEnvironment])
 
   // Выбрали другую папку — счётчик на кнопке «Анализ всего» считается для неё.
   useEffect(() => {
@@ -99,7 +115,18 @@ export default function App() {
       const s = await api.scanStatus().catch(() => null)
       if (!s) return
       setScan(s)
-      if (s.state !== 'running') { setReloadKey((k) => k + 1); refreshCounters(folder?.id) }
+      if (s.state !== 'running') {
+        setReloadKey((k) => k + 1)
+        refreshCounters(folder?.id)
+        if (s.state === 'done' && s.stats) {
+          notify({
+            level: 'ok', title: 'Скан завершён',
+            text: `Файлов ${s.stats.files_total}, новых ${s.stats.files_added}${s.stats.corrupted ? `, повреждено ${s.stats.corrupted}` : ''}`,
+          })
+        } else if (s.state === 'error') {
+          notify({ level: 'error', title: 'Скан не удался', text: s.error ?? undefined, sticky: true })
+        }
+      }
     }, 500)
     return () => { if (scanTimer.current) window.clearInterval(scanTimer.current) }
   }, [scan?.state, refreshCounters, folder?.id])
@@ -120,12 +147,24 @@ export default function App() {
         lastDone = a.done
         setReloadKey((k) => k + 1)
       }
-      if (a.state !== 'running') refreshCounters(folder?.id)
+      if (a.state !== 'running') {
+        refreshCounters(folder?.id)
+        if (a.state === 'error') {
+          notify({ level: 'error', title: 'Анализ не удался', text: a.error ?? undefined, sticky: true })
+        } else {
+          notify({
+            level: a.failed > 0 ? 'warn' : 'ok',
+            title: a.state === 'cancelled' ? 'Анализ остановлен' : 'Анализ завершён',
+            text: `Разобрано ${a.analyzed}${a.failed > 0 ? `, с ошибкой ${a.failed}` : ''}${a.skipped > 0 ? `, пропущено ${a.skipped}` : ''}`,
+          })
+        }
+      }
     }, 1500)
     return () => { if (analyzeTimer.current) window.clearInterval(analyzeTimer.current) }
   }, [analyze?.state, refreshCounters, folder?.id])
 
   const startScan = async () => {
+    requestNotificationPermission()
     try { setScan(await api.startScan()) } catch (e) {
       setScan({
         state: 'error', phase: null, started_at: null, finished_at: null,
@@ -142,6 +181,7 @@ export default function App() {
       // «Всё» — это выбранная папка с подпапками; без выбора — всё хранилище.
       : folder != null ? { folder_id: folder.id, recursive: true }
       : {}
+    requestNotificationPermission()
     try {
       setAnalyze(await api.analyze({ ...body, fast: fastModel }))
     } catch (e) {
@@ -175,7 +215,16 @@ export default function App() {
     }
     exportTimer.current = window.setInterval(async () => {
       const s = await api.exportStatus().catch(() => null)
-      if (s) setExportState(s)
+      if (!s) return
+      setExportState(s)
+      if (s.state === 'done') {
+        notify({
+          level: 'ok', title: 'Экспорт готов', text: s.output ?? undefined, sticky: true,
+          action: { label: 'Показать в Finder', run: () => { api.revealExport().catch(() => undefined) } },
+        })
+      } else if (s.state === 'error') {
+        notify({ level: 'error', title: 'Экспорт не удался', text: s.error ?? undefined, sticky: true })
+      }
     }, 800)
     return () => { if (exportTimer.current) window.clearInterval(exportTimer.current) }
   }, [exportState?.state])
@@ -408,7 +457,18 @@ export default function App() {
           onChange={(e) => setQuery(e.target.value)}
           style={{ width: 200 }}
         />
+        <button onClick={() => setSettingsOpen(true)} title="Настройки">⚙</button>
       </header>
+
+      {envProblems.length > 0 && !envBannerHidden && (
+        <div className="env-banner">
+          <span>
+            {envProblems.map((c) => c.text).join(' · ')}
+          </span>
+          <button onClick={() => setSettingsOpen(true)}>Настройки</button>
+          <button onClick={() => setEnvBannerHidden(true)} title="Скрыть">✕</button>
+        </div>
+      )}
 
       <div className="main">
         <section className="pane">
@@ -574,15 +634,34 @@ export default function App() {
         info={agentInfo}
         status={agent}
         onStatus={setAgent}
-        onFinished={() => {
+        onFinished={(status) => {
           // Агент правил таймлайн — перечитываем проект и снимаем выделение клипа.
           if (projectId != null) api.timeline(projectId).then(setTimeline).catch(() => undefined)
           setSelectedClip(null)
+          if (status.state === 'error') {
+            notify({ level: 'error', title: 'Агент остановился с ошибкой', text: status.error ?? undefined, sticky: true })
+          } else if (status.state === 'done') {
+            notify({ level: 'ok', title: 'Агент закончил монтаж', text: status.answer ?? undefined })
+          }
         }}
       />
 
+      <LogPanel open={logsOpen} onClose={() => setLogsOpen(false)} />
+
+      {settingsOpen && (
+        <SettingsDialog
+          onClose={() => setSettingsOpen(false)}
+          onSaved={refreshEnvironment}
+          onRootsChanged={() => { setFolder(null); setFile(null); setSelectedIds(new Set()); setReloadKey((k) => k + 1); refreshCounters() }}
+        />
+      )}
+      <Toasts />
+
       <StatusBar
         health={health}
+        logsOpen={logsOpen}
+        onToggleLogs={() => setLogsOpen((v) => !v)}
+        onOpenSettings={() => setSettingsOpen(true)}
         scan={scan}
         analyze={analyze}
         preview={preview}

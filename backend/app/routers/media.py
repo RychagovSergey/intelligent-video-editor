@@ -1,9 +1,14 @@
 """Список медиафайлов и их метаданные (ТЗ пп. 3.1, 3.7)."""
 from __future__ import annotations
 
+import json
+import logging
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from fastapi.responses import FileResponse, Response
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -13,8 +18,10 @@ from ..ffmpeg.render import play
 from ..ffmpeg.runner import BinaryMissing
 from ..ffmpeg.thumbs import THUMB_WIDTH, ensure_thumbnail
 from ..ffmpeg.waveform import DEFAULT_POINTS, MAX_POINTS, MIN_POINTS, ensure_waveform
-from ..models import AnalysisStatus, MediaFile, MediaType, enum_value
+from ..models import AnalysisStatus, MediaFile, MediaType, MetaCache, enum_value
 from ..schemas import MediaFileOut, MediaListOut, MetaOut
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["media"])
 
@@ -85,6 +92,82 @@ def get_media_meta(file_id: int, db: Session = Depends(get_db)) -> MetaOut:
     if file is None:
         raise HTTPException(404, detail="Файл не найден")
     return MetaOut.from_cache(file_id, file.meta)
+
+
+#: Поля meta.json, которые можно править руками (ТЗ п. 3.7). Технические поля
+#: (длительность, разрешение, сцены с таймкодами, ритм) — только от анализа.
+EDITABLE_TEXT = {"description", "summary", "style", "emotions", "quality", "title_hint"}
+EDITABLE_LISTS = {"objects", "colors"}
+#: У сцен правится только описание: время и качество кадра — от анализа.
+EDITABLE_SCENE = {"description"}
+
+
+class MetaPatch(BaseModel):
+    fields: dict[str, Any] = {}
+    #: Индекс сцены → новые значения её полей.
+    scenes: dict[int, dict[str, Any]] = {}
+
+
+def _clean_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        value = value.split(",")
+    if not isinstance(value, list):
+        raise HTTPException(400, detail="Ожидается список строк")
+    return [str(v).strip() for v in value if str(v).strip()]
+
+
+@router.put("/media/{file_id}/meta", response_model=MetaOut)
+def update_media_meta(file_id: int, patch: MetaPatch, db: Session = Depends(get_db)) -> MetaOut:
+    """Ручная правка описаний в meta.json.
+
+    Правится и сайдкар, и копия в базе — как после анализа. Эмбеддинг для поиска
+    пересчитается сам: `search_media` перед поиском сверяет хеш текста (см. agent/search.py).
+    Повторный анализ с `force` перепишет правки — на это интерфейс отдельно указывает.
+    """
+    from ..analysis.analyzer import write_sidecar
+
+    file = db.get(MediaFile, file_id)
+    if file is None:
+        raise HTTPException(404, detail="Файл не найден")
+    cache = db.execute(select(MetaCache).where(MetaCache.file_id == file_id)).scalar_one_or_none()
+    if cache is None:
+        raise HTTPException(400, detail="Файл ещё не проанализирован — править нечего")
+    try:
+        meta = json.loads(cache.meta_json)
+    except json.JSONDecodeError:
+        meta = {}
+    if not isinstance(meta, dict):
+        meta = {}
+
+    for key, value in patch.fields.items():
+        if key in EDITABLE_TEXT:
+            meta[key] = "" if value is None else str(value).strip()
+        elif key in EDITABLE_LISTS:
+            meta[key] = _clean_list(value)
+        else:
+            raise HTTPException(400, detail=f"Поле «{key}» не редактируется")
+    scenes = meta.get("scenes")
+    for index, values in patch.scenes.items():
+        if not isinstance(scenes, list) or not 0 <= index < len(scenes):
+            raise HTTPException(400, detail=f"Сцены {index} нет")
+        for key, value in values.items():
+            if key not in EDITABLE_SCENE:
+                raise HTTPException(400, detail=f"Поле сцены «{key}» не редактируется")
+            scenes[index][key] = "" if value is None else str(value).strip()
+
+    meta["edited_at"] = datetime.now(timezone.utc).isoformat()
+    raw = json.dumps(meta, ensure_ascii=False)
+    try:
+        sidecar = write_sidecar(Path(file.path), meta)
+        cache.source_mtime = sidecar.stat().st_mtime
+        file.meta_path = str(sidecar)
+        file.has_meta = True
+    except OSError as exc:
+        # Папка только на чтение — правка остаётся в базе, как и при анализе.
+        log.warning("meta.json не записан для %s: %s", file.path, exc)
+    cache.meta_json = raw
+    db.flush()
+    return MetaOut.from_cache(file_id, cache)
 
 
 #: Эти форматы браузер играет сам, остальные показываем перекодированной картинкой.

@@ -42,6 +42,15 @@ machine is the text of a request to the editing agent — and only if you use th
   is filtered by the quality grade — all from computed data, not prompt wishes.
 - **MCP server** — the same editing tools exposed to an external agent (Claude Code,
   Claude Desktop, etc.).
+- **Settings panel, log panel, notifications** — every `.env` option is editable from
+  the UI (the backend re-reads it on the fly), an environment check tells you what's
+  missing and how to fix it, the backend log is one click away, and finished jobs
+  (scan, analysis, export, agent) raise a toast — plus a system notification when the
+  window is in the background. Descriptions and tags in `meta.json` can be corrected
+  by hand.
+- **Desktop shell (Tauri)** — one launch instead of two terminals: the window starts
+  the backend from `.venv`, ships its own static ffmpeg/ffprobe/ffplay, offers native
+  folder pickers, and stops the backend when closed. The browser mode still works.
 
 ## Requirements
 
@@ -105,6 +114,29 @@ The rest of the settings, with detailed comments, are in
 
 ## Run
 
+### Desktop app (Tauri)
+
+Needs Rust (`rustup`) in addition to the requirements above. Once:
+
+```bash
+./scripts/fetch-ffmpeg.sh          # static ffmpeg/ffprobe/ffplay into frontend/src-tauri/binaries
+```
+
+```bash
+npm run tauri dev --prefix frontend
+```
+
+The window launches `.venv/bin/python -m uvicorn` from the repository root, waits for
+it, and stops it on exit; a backend already listening on the port is reused. Bundled
+binaries are passed to the backend as `FFMPEG_PATH` etc. and take precedence over
+`.env` — the settings panel marks such fields. `npm run tauri build --prefix frontend`
+produces `.app`/`.dmg` in `frontend/src-tauri/target/release/bundle/`; the built app
+still starts the backend from this repository's `.venv` (path baked in at build time,
+override with `IVE_PROJECT_ROOT`) — a fully self-contained bundle with an embedded
+Python is deliberately out of scope.
+
+### Browser mode
+
 Two processes: the backend and the frontend dev server.
 
 ```bash
@@ -124,7 +156,7 @@ The dev server proxies `/api` to port 8001; for a different port use
 
 ## Usage
 
-1. **Add folders** to the library from the UI (or set `MEDIA_ROOTS`) and wait for the
+1. **Add folders** to the library (⚙ → Storage, or set `MEDIA_ROOTS`) and wait for the
    scan: files are indexed first, then their characteristics are read via ffprobe.
 2. **Analyze files** — the analysis button runs the selected files through
    the VL model and stores the result in `meta.json`. Re-analysis with overwrite is a
@@ -225,6 +257,8 @@ backend/
   mcp_server.py   MCP server on top of the same tools
   tests/
 frontend/src/     React + TypeScript, SPA
+frontend/src-tauri/  Tauri shell: starts the backend, bundles ffmpeg
+scripts/          fetch-ffmpeg.sh — static binaries for the shell
 EDITOR_AGENT.md   system prompt for the editing agent
 ```
 
@@ -236,9 +270,10 @@ top of it — no duplicated logic.
 ## Status
 
 Core functionality (indexing, ffmpeg, analysis, timeline editor, preview, export,
-editing agent with an MCP server) is implemented and covered by tests. Packaging
-into a native shell (Electron/Tauri) hasn't been done yet, so for now the app runs
-as two console processes, as described above.
+editing agent with an MCP server, settings/log panels, Tauri shell) is implemented
+and covered by tests. The shell runs the backend from the repository's `.venv`
+rather than embedding Python; a standalone installer is not planned while the app
+has a single user.
 
 ## License
 
